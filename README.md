@@ -6,30 +6,48 @@ from one cluster to another cluster.
 
 ##### Use Case(s)
 1. Provides a simple, cost effective way of moving existing Elasticsearch indices from on-prem cluster to Cloud.
-1. Curerntly this is developed and test with GCP. AWS support is more of test effort.
+1. Currently this is developed and test with GCP. AWS support is more of test effort.
 1. This supports moving 100's of terabytes of Elasticsearch indices.     
 1. Support blue/green deployment process. We want to do this with (almost) zero downtime.
 1. Provides visibility on the sync progress.
 
+##### Pre-Requisites
+1. Your Elasticsearch version
+    1. You can find this by running: 
+    `
+    curl localhost:9200
+    `
+1. Distribute the compiled zip file to /home/logrhythm on both the sink and source nodes.
+1. If either the sink or source is an elasticsearch cluster the plugin will need installed on all nodes.
+
+
 ##### CloudSync Install
+
+
 1. Install cloudsync
-    1. On both source and sink clusters.   
+    1. On both source and sink clusters.
     `
     /usr/share/elasticsearch/bin/elasticsearch-plugin install file:///home/logrhythm/cloud-sync-1.0.0-SNAPSHOT.zip
-    `   
+    `
 1. Install GCS plugin
     1. Download GCS plugin from: https://artifacts.elastic.co/downloads/elasticsearch-plugins/repository-gcs/repository-gcs-5.6.3.zip
-    1. On both source and sink clusters.  
+       NOTE: The version in repository-gcs-<version>.zip should match your es version.
+    1. On both source and sink clusters.
     `
-    bin/elasticsearch-plugin install file:///home/logrhythm/hack/repository-gcs-5.6.3.zip
+    /usr/share/elasticsearch/bin/elasticsearch-plugin install file:///home/logrhythm/repository-gcs-5.6.3.zip
     `
-    1. Follow steps from: https://www.elastic.co/guide/en/elasticsearch/plugins/5.6/repository-gcs-usage.html 
+       NOTE: If you receive an `Exception in thread "main" java.lang.IllegalArgumentException: Could not resolve placeholder 'DX_ES_BOX_TYPE'`
+       message you will need to follow these instructions: https://confluence.logrhythm.com/display/CYAN/Install+a+Elasticsearch+plugin for DX_ES_BOX_TYPE and VIRTUAL_HOSTNAME variables.
+    1. Follow steps from: https://www.elastic.co/guide/en/elasticsearch/plugins/5.6/repository-gcs-usage.html
+    1. Distribute your gcp service account key to each node that is not a compute instance.
+    1. If necessary, create a new keystore: https://www.elastic.co/guide/en/elasticsearch/reference/5.6/secure-settings.html
+    NOTE: If you create the keystore while you are root you may need to chown/chmod the `/etc/elasticsearch/elasticsearch.keystore` file.
     1. Adding GCS creds to the Elasticsearch keystore. (On Source)
-     ` 
-     /usr/share/elasticsearch/bin/elasticsearch-keystore add-file gcs.client.default.credentials_file /gcs/my_file.json
      `
-    1. If Sink cluster is on GCP, it doesnt needs GCS creds in Elasticsearch keystore.
-        
+     /usr/share/elasticsearch/bin/elasticsearch-keystore add-file gcs.client.default.credentials_file <path_to_file>/<name_of_service_account_key>.json
+     `
+    1. If Sink cluster is on GCP, it shouldn’t need GCS creds in Elasticsearch keystore.
+
 
 ##### CloudSync API
 1. Start the Source:  
@@ -79,6 +97,7 @@ from one cluster to another cluster.
     }'
     `
 1. Curl examples for 'gcs' store 
+    1. Start the source
 
     `
     curl -X POST "localhost:9200/cloudsync/start" -H 'Content-Type: application/json' -d'
@@ -89,6 +108,7 @@ from one cluster to another cluster.
       "location": "dx_cloud"
     }'
     `
+    1. Start the sink
     `
     curl -X POST "localhost:9200/cloudsync/start" -H 'Content-Type: application/json' -d'
     {
@@ -99,13 +119,11 @@ from one cluster to another cluster.
     }'
     `
 
-
 1. Sync Status on source cluster 
    
     `GET /cloudsync/status`
 
     `curl localhost:9200/cloudsync/status`
-
 ##### Development
 
 1. Built using maven.
